@@ -26,7 +26,9 @@ jobs:
         run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination 'id=98CB1710-8715-4EFC-87BF-070976F6498F' CODE_SIGNING_ALLOWED='NO'
       - name: Upload iOS app artifact
         uses: actions/upload-artifact@v4
+      - name: Upload iOS app artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ios-app-debug
-          path: iosApp/build/Debug-iphonesimulator/*.app
+          path: ~/Library/Developer/Xcode/DerivedData/iosApp-*/Build/Products/Debug-iphonesimulator/KMP*.app
           retention-days: 7
