@@ -3,7 +3,7 @@ name: Build iOS app for Device Testing
 on:
   push:
     branches:
-      - main
+      - master
   pull_request:
 
 jobs:
@@ -62,8 +62,17 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           cd iosApp
+          
+          # Build for iOS Simulator first
+          echo "Building for iOS Simulator..."
+          xcodebuild -scheme iosApp \
+            -configuration Debug \
+            -destination 'id=98CB1710-8715-4EFC-87BF-070976F6498F' \
+            CODE_SIGNING_ALLOWED='NO'
+          
+          # Build for iOS Device
           if [ -n "$APPLE_DEV_CERTIFICATE_BASE64" ]; then
-            echo "Building with development signing..."
+            echo "Building with development signing for device..."
             xcodebuild -scheme iosApp \
               -configuration Debug \
               -destination 'generic/platform=iOS' \
@@ -74,7 +83,7 @@ jobs:
               PROVISIONING_PROFILE_SPECIFIER="development" \
               archive
           else
-            echo "No signing certificates found. Building unsigned..."
+            echo "Building unsigned for device..."
             xcodebuild -scheme iosApp \
               -configuration Debug \
               -destination 'generic/platform=iOS' \
@@ -82,12 +91,22 @@ jobs:
               ARCHS='arm64'
           fi
 
-      # Create IPA
-      - name: Create IPA
+      # Create IPA and copy simulator app
+      - name: Create IPA and copy simulator app
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           cd iosApp
+          
+          # Copy simulator app first
+          SIM_APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphonesimulator/*" -type d | head -1)
+          if [ -n "$SIM_APP_PATH" ]; then
+            echo "Found simulator app at: $SIM_APP_PATH"
+            cp -r "$SIM_APP_PATH" ../KMP_App_Simulator.app
+            echo "✅ Simulator app copied - can run on iOS Simulator"
+          fi
+          
+          # Create device IPA
           if [ -d "KMP_App.xcarchive" ]; then
             # Create export options
             cat > exportOptions.plist << EOF
@@ -117,17 +136,17 @@ jobs:
           
             # Copy IPA to root
             cp export/*.ipa ../KMP_App_Development.ipa
-            echo "Signed IPA created successfully"
+            echo "✅ Signed device IPA created - can be installed on registered devices"
           else
-            # Fallback: create unsigned IPA from .app
-            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphoneos/*" -type d)
-            if [ -n "$APP_PATH" ]; then
+            # Fallback: create unsigned IPA from device .app
+            DEVICE_APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphoneos/*" -type d | head -1)
+            if [ -n "$DEVICE_APP_PATH" ]; then
               mkdir -p Payload
-              cp -r "$APP_PATH" Payload/
+              cp -r "$DEVICE_APP_PATH" Payload/
               cd ..
               zip -r KMP_App_Unsigned.ipa iosApp/Payload/
               rm -rf iosApp/Payload
-              echo "Unsigned IPA created (won't run on device without jailbreak)"
+              echo "⚠️ Unsigned device IPA created - won't run on non-jailbroken devices"
             fi
           fi
 
