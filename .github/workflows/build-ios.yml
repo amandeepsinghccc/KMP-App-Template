@@ -24,11 +24,20 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
       - name: iOS debug build
         run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination 'id=98CB1710-8715-4EFC-87BF-070976F6498F' CODE_SIGNING_ALLOWED='NO'
-      - name: Upload iOS app artifact
-        uses: actions/upload-artifact@v4
+      - name: Find and upload iOS app artifact
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphonesimulator/*" -type d)
+          echo "Found app at: $APP_PATH"
+          if [ -n "$APP_PATH" ]; then
+            cp -r "$APP_PATH" ./KMP_App.app
+          else
+            echo "No app found!"
+            exit 1
+          fi
+
       - name: Upload iOS app artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-debug
-          path: ~/Library/Developer/Xcode/DerivedData/iosApp-*/Build/Products/Debug-iphonesimulator/KMP*.app
+          path: KMP_App.app
           retention-days: 7
