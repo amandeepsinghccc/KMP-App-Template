@@ -23,4 +23,4 @@ jobs:
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
       - name: iOS debug build
-        run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination 'platform=iOS Simulator,name=Any iOS Simulator Device' CODE_SIGNING_ALLOWED='NO'
+        run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination 'id=98CB1710-8715-4EFC-87BF-070976F6498F' CODE_SIGNING_ALLOWED='NO'
