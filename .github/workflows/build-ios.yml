@@ -22,8 +22,18 @@ jobs:
         run: chmod +x ./gradlew
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+      - name: Select iOS Simulator
+        id: select-sim
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 16 (" | head -n 1 | awk -F '[()]' '{print $2}')
+          echo "Picked device: $DEVICE_ID"
+          echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       - name: iOS debug build
-        run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination 'id=98CB1710-8715-4EFC-87BF-070976F6498F' CODE_SIGNING_ALLOWED='NO'
+        run: cd iosApp && xcodebuild \
+          -scheme iosApp \
+          -configuration Debug \
+          -destination "id=$DEVICE_ID" \
+          CODE_SIGNING_ALLOWED=NO
       - name: Find and upload iOS app artifact
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphonesimulator/*" -type d)
