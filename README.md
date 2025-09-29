@@ -2,6 +2,8 @@
 
 [![official project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Build iOS app](https://github.com/amandeepsinghccc/KMP-App-Template/actions/workflows/build-ios.yml/badge.svg)](https://github.com/amandeepsinghccc/KMP-App-Template/actions/workflows/build-ios.yml)
+[![Build Android app](https://github.com/amandeepsinghccc/KMP-App-Template/actions/workflows/build-android.yml/badge.svg)](https://github.com/amandeepsinghccc/KMP-App-Template/actions/workflows/build-android.yml)
 
 This is a basic Kotlin Multiplatform app template for Android and iOS. It includes shared business logic and data handling, and a shared UI implementation using Compose Multiplatform.
 
