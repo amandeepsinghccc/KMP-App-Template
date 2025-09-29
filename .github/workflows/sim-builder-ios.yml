@@ -3,7 +3,7 @@ name: Build iOS app for Device Testing
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
 
 jobs:
