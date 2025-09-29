@@ -29,11 +29,7 @@ jobs:
           echo "Picked device: $DEVICE_ID"
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
       - name: iOS debug build
-        run: cd iosApp && xcodebuild \
-          -scheme iosApp \
-          -configuration Debug \
-          -destination "id=$DEVICE_ID" \
-          CODE_SIGNING_ALLOWED=NO
+        run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination "id=$DEVICE_ID" CODE_SIGNING_ALLOWED=NO
       - name: Find and upload iOS app artifact
         run: |
           APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphonesimulator/*" -type d)

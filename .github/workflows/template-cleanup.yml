@@ -6,7 +6,7 @@ name: Template Cleanup
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   # Run cleaning process only if workflow is triggered by the non-Kotlin/KMP-App-Template repository.
