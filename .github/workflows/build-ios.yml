@@ -8,42 +8,110 @@ on:
 
 jobs:
   test:
-    name: Build
-    runs-on: macOS-latest
+    name: Build and Record iOS App
+    runs-on: macos-latest
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: zulu
           java-version: 21
+
       - name: Make Gradle Wrapper executable
         run: chmod +x ./gradlew
+
       - name: Set Xcode version
         run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
       - name: Select iOS Simulator
-        id: select-sim
         run: |
           DEVICE_ID=$(xcrun simctl list devices available | grep "iPhone 16 (" | head -n 1 | awk -F '[()]' '{print $2}')
+          if [ -z "$DEVICE_ID" ]; then
+            echo "No iPhone 16 simulator found"
+            exit 1
+          fi
+
           echo "Picked device: $DEVICE_ID"
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
-      - name: iOS debug build
-        run: cd iosApp && xcodebuild -scheme iosApp -configuration Debug -destination "id=$DEVICE_ID" CODE_SIGNING_ALLOWED=NO
-      - name: Find and upload iOS app artifact
+
+      - name: Boot simulator
         run: |
-          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "KMP*.app" -path "*/Debug-iphonesimulator/*" -type d)
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+      - name: Start screen recording
+        run: |
+          mkdir -p artifacts
+          xcrun simctl io "$DEVICE_ID" recordVideo artifacts/ios-simulator.mp4 &
+          echo $! > recorder.pid
+
+      - name: Build iOS app
+        run: |
+          cd iosApp
+          xcodebuild \
+            -scheme iosApp \
+            -configuration Debug \
+            -destination "id=$DEVICE_ID" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Find app bundle
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData \
+            -name "*.app" \
+            -path "*/Debug-iphonesimulator/*" \
+            -type d | head -n 1)
+
           echo "Found app at: $APP_PATH"
-          if [ -n "$APP_PATH" ]; then
-            cp -r "$APP_PATH" ./KMP_App.app
-          else
+
+          if [ -z "$APP_PATH" ]; then
             echo "No app found!"
             exit 1
           fi
 
+          cp -R "$APP_PATH" ./KMP_App.app
+
+      - name: Install app on simulator
+        run: |
+          xcrun simctl install "$DEVICE_ID" ./KMP_App.app
+
+      - name: Launch app
+        run: |
+          APP_BUNDLE_ID=$(
+            defaults read "$(pwd)/KMP_App.app/Info.plist" CFBundleIdentifier
+          )
+
+          echo "Bundle ID: $APP_BUNDLE_ID"
+
+          xcrun simctl launch "$DEVICE_ID" "$APP_BUNDLE_ID"
+
+      # Give the app a few seconds to render its first screen
+      - name: Wait for app to render
+        run: sleep 10
+
       - name: Upload iOS app artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-app-debug
           path: KMP_App.app
+          retention-days: 7
+
+      - name: Stop screen recording
+        if: always()
+        run: |
+          if [ -f recorder.pid ]; then
+            kill $(cat recorder.pid) || true
+            sleep 3
+          fi
+
+      - name: Upload simulator video
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-video
+          path: artifacts/ios-simulator.mp4
           retention-days: 7
