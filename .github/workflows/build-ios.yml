@@ -1,16 +1,13 @@
 name: Build iOS app
-
 on:
   push:
     branches:
       - master
   pull_request:
-
 jobs:
   test:
     name: Build and Record iOS App
     runs-on: macos-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -34,7 +31,6 @@ jobs:
             echo "No iPhone 16 simulator found"
             exit 1
           fi
-
           echo "Picked device: $DEVICE_ID"
           echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
 
@@ -48,6 +44,13 @@ jobs:
           mkdir -p artifacts
           xcrun simctl io "$DEVICE_ID" recordVideo artifacts/ios-simulator.mp4 &
           echo $! > recorder.pid
+          # give the recorder a moment to actually initialize before continuing
+          sleep 2
+          if ! kill -0 $(cat recorder.pid) 2>/dev/null; then
+            echo "Recorder process died immediately - recording failed to start"
+            exit 1
+          fi
+          echo "Recorder started with PID $(cat recorder.pid)"
 
       - name: Build iOS app
         run: |
@@ -64,14 +67,11 @@ jobs:
             -name "*.app" \
             -path "*/Debug-iphonesimulator/*" \
             -type d | head -n 1)
-
           echo "Found app at: $APP_PATH"
-
           if [ -z "$APP_PATH" ]; then
             echo "No app found!"
             exit 1
           fi
-
           cp -R "$APP_PATH" ./KMP_App.app
 
       - name: Install app on simulator
@@ -83,9 +83,7 @@ jobs:
           APP_BUNDLE_ID=$(
             defaults read "$(pwd)/KMP_App.app/Info.plist" CFBundleIdentifier
           )
-
           echo "Bundle ID: $APP_BUNDLE_ID"
-
           xcrun simctl launch "$DEVICE_ID" "$APP_BUNDLE_ID"
 
       # Give the app a few seconds to render its first screen
@@ -104,8 +102,44 @@ jobs:
         if: always()
         run: |
           if [ -f recorder.pid ]; then
-            kill $(cat recorder.pid) || true
-            sleep 3
+            PID=$(cat recorder.pid)
+            if kill -0 "$PID" 2>/dev/null; then
+              echo "Sending SIGINT to recorder PID $PID"
+              kill -INT "$PID"
+              # Wait for the process to actually finish writing/finalizing the file.
+              # `wait` only works on child processes of this shell, and each step
+              # runs in a fresh shell, so poll instead for portability.
+              for i in $(seq 1 15); do
+                if ! kill -0 "$PID" 2>/dev/null; then
+                  echo "Recorder exited after ${i}s"
+                  break
+                fi
+                sleep 1
+              done
+              # Force kill as a last resort if it's still hanging around
+              if kill -0 "$PID" 2>/dev/null; then
+                echo "Recorder did not exit gracefully, force killing"
+                kill -9 "$PID" || true
+              fi
+            else
+              echo "Recorder process $PID already exited"
+            fi
+          else
+            echo "No recorder.pid file found"
+          fi
+
+      - name: Verify video file
+        if: always()
+        run: |
+          echo "Artifacts directory contents:"
+          ls -la artifacts/ || true
+          if [ -f artifacts/ios-simulator.mp4 ]; then
+            echo "File size:"
+            du -h artifacts/ios-simulator.mp4
+            echo "File type:"
+            file artifacts/ios-simulator.mp4
+          else
+            echo "No video file found at artifacts/ios-simulator.mp4"
           fi
 
       - name: Upload simulator video
