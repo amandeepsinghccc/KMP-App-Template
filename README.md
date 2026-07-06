@@ -15,7 +15,7 @@ This is a basic Kotlin Multiplatform app template for Android and iOS. It includ
 
 ### Technologies
 
-The data displayed by the app is from [The Metropolitan Museum of Art Collection API](https://metmuseum.github.io/).
+The data displayed by the app is from [The Metropolitan Museum of Art Collection API.](https://metmuseum.github.io/).
 
 The app uses the following multiplatform dependencies in its implementation:
 
